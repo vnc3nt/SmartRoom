@@ -1,0 +1,13 @@
+# Target labels
+ bootloader
+# Source files and their labels
+/Users/vnc3nt/Documents/Code/VS-Code/ESP32/SmartRoom/SmartRoom/build/CMakeFiles/bootloader
+/Users/vnc3nt/Documents/Code/VS-Code/ESP32/SmartRoom/SmartRoom/build/CMakeFiles/bootloader.rule
+/Users/vnc3nt/Documents/Code/VS-Code/ESP32/SmartRoom/SmartRoom/build/CMakeFiles/bootloader-complete.rule
+/Users/vnc3nt/Documents/Code/VS-Code/ESP32/SmartRoom/SmartRoom/build/bootloader-prefix/src/bootloader-stamp/bootloader-build.rule
+/Users/vnc3nt/Documents/Code/VS-Code/ESP32/SmartRoom/SmartRoom/build/bootloader-prefix/src/bootloader-stamp/bootloader-configure.rule
+/Users/vnc3nt/Documents/Code/VS-Code/ESP32/SmartRoom/SmartRoom/build/bootloader-prefix/src/bootloader-stamp/bootloader-download.rule
+/Users/vnc3nt/Documents/Code/VS-Code/ESP32/SmartRoom/SmartRoom/build/bootloader-prefix/src/bootloader-stamp/bootloader-install.rule
+/Users/vnc3nt/Documents/Code/VS-Code/ESP32/SmartRoom/SmartRoom/build/bootloader-prefix/src/bootloader-stamp/bootloader-mkdir.rule
+/Users/vnc3nt/Documents/Code/VS-Code/ESP32/SmartRoom/SmartRoom/build/bootloader-prefix/src/bootloader-stamp/bootloader-patch.rule
+/Users/vnc3nt/Documents/Code/VS-Code/ESP32/SmartRoom/SmartRoom/build/bootloader-prefix/src/bootloader-stamp/bootloader-update.rule
