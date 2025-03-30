@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.31)
 
 set(ENV{ESP_MATTER_PATH} "/Users/vnc3nt/esp/esp-matter")
 
