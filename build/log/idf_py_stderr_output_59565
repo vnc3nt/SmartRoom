@@ -1,9 +1,0 @@
-CMake Error at /Users/vnc3nt/esp/esp-idf/tools/cmake/build.cmake:611 (message):
-  ERROR: Because project depends on both espressif/esp_insights (1.2.2) and
-  espressif/esp_insights (1.0.1), version solving failed.
-
-Call Stack (most recent call first):
-  /Users/vnc3nt/esp/esp-idf/tools/cmake/project.cmake:735 (idf_build_process)
-  CMakeLists.txt:19 (project)
-
-

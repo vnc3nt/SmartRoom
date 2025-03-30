@@ -1,23 +1,22 @@
 cmake_minimum_required(VERSION 3.16)
 
-# Da ESP-Matter bereits in Ihrem components-Verzeichnis existiert, 
-# können Sie direkt diesen Pfad verwenden ohne Umgebungsvariablen
+set(ENV{ESP_MATTER_PATH} "/Users/vnc3nt/esp/esp-matter")
 
-# Wichtig: EXTRA_COMPONENT_DIRS muss VOR dem include von project.cmake stehen
-set(EXTRA_COMPONENT_DIRS
-    "${CMAKE_SOURCE_DIR}/components/esp-matter/components"
-    "${CMAKE_SOURCE_DIR}/components/esp-matter/connectedhomeip/connectedhomeip/config/esp32/components"
-    "${CMAKE_SOURCE_DIR}/components/esp-matter/examples/common"
-)
 
-# ESP-IDF project.cmake einbinden
+# ESP-Matter-Komponenten einbinden (VOR dem project.cmake Include!)
+set(EXTRA_COMPONENT_DIRS "/Users/vnc3nt/esp/esp-matter/components"
+                       "/Users/vnc3nt/esp/esp-matter/device_hal/device/esp32c6_devkit_c"
+                       "/Users/vnc3nt/esp/esp-matter/connectedhomeip/connectedhomeip/config/esp32/components")
+
+
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
+project(SmartRoom)
 
 # Minimalen Build beibehalten
 idf_build_set_property(MINIMAL_BUILD ON)
 
-project(SmartRoom)
-
-# C++ Compiler-Optionen für Matter hinzufügen
+# C++ Compiler-Optionen für Matter
 idf_build_set_property(CXX_COMPILE_OPTIONS "-std=gnu++17;-Os;-DCHIP_HAVE_CONFIG_H;-Wno-overloaded-virtual" APPEND)
 idf_build_set_property(C_COMPILE_OPTIONS "-Os" APPEND)
+
+
