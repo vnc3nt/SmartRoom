@@ -6,6 +6,8 @@
 
 [NEC](https://www.sbprojects.net/knowledge/ir/nec.php) is a common use IR protocol, this example creates a TX channel and sends out the IR NEC signals periodically. The signal is modulated with a 38KHz carrier. The example also creates an RX channel, to receive and parse the IR NEC signals into scan codes.
 
+## Still in Progress!
+
 ## How to Use Example
 
 ### Hardware Required
