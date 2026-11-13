@@ -1,0 +1,18 @@
+# Build output
+build/
+
+# ESP-IDF generated
+sdkconfig
+sdkconfig.old
+
+# OS/editor junk
+.DS_Store
+main/.DS_Store
+.vscode/
+
+# Python
+__pycache__/
+.pytest_cache/
+
+# Host-test build output
+tests/host/build/

@@ -1,0 +1,90 @@
+menu "SmartRoom"
+
+choice SMARTROOM_RGB_BACKEND
+    prompt "RGB backend"
+    default SMARTROOM_RGB_BACKEND_NONE
+    help
+        Select the physical RGB output backend.
+
+config SMARTROOM_RGB_BACKEND_NONE
+    bool "Disabled (safe default)"
+
+config SMARTROOM_RGB_BACKEND_WS2812
+    bool "Addressable strip (WS2812-like)"
+
+config SMARTROOM_RGB_BACKEND_ANALOG
+    bool "Analog RGB via MOSFET + LEDC"
+endchoice
+
+config SMARTROOM_IR_RX_GPIO
+    int "IR RX GPIO"
+    default 19
+
+config SMARTROOM_IR_TX_GPIO
+    int "IR TX GPIO"
+    default 18
+
+config SMARTROOM_BUTTON_GPIO
+    int "Learn button GPIO"
+    default 9
+
+config SMARTROOM_IR_RESOLUTION_HZ
+    int "IR RMT resolution (Hz)"
+    default 1000000
+
+config SMARTROOM_IR_DEFAULT_CARRIER_HZ
+    int "Default IR carrier frequency (Hz)"
+    default 38000
+
+config SMARTROOM_IR_MAX_SYMBOLS
+    int "Max captured symbols"
+    default 512
+    range 64 1024
+
+config SMARTROOM_IR_MAX_SIGNALS
+    int "Max learned signals"
+    default 24
+    range 1 64
+
+config SMARTROOM_LEARN_LONG_PRESS_MS
+    int "Long press threshold (ms)"
+    default 1500
+
+config SMARTROOM_LEARN_TIMEOUT_MS
+    int "Learning timeout (ms)"
+    default 12000
+
+config SMARTROOM_BUTTON_DEBOUNCE_MS
+    int "Button debounce window (ms)"
+    default 40
+
+config SMARTROOM_RGB_GPIO_R
+    int "Analog RGB red GPIO"
+    default 2
+
+config SMARTROOM_RGB_GPIO_G
+    int "Analog RGB green GPIO"
+    default 3
+
+config SMARTROOM_RGB_GPIO_B
+    int "Analog RGB blue GPIO"
+    default 4
+
+config SMARTROOM_RGB_ACTIVE_HIGH
+    bool "Analog RGB output active high"
+    default y
+
+config SMARTROOM_RGB_LED_COUNT
+    int "WS2812 LED count"
+    default 8
+    range 1 512
+
+config SMARTROOM_RGB_RMT_GPIO
+    int "WS2812 data GPIO"
+    default 8
+
+config SMARTROOM_RGB_CHANNEL_ORDER
+    string "WS2812 channel order (e.g. GRB, RGB)"
+    default "GRB"
+
+endmenu
