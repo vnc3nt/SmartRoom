@@ -1,7 +1,8 @@
-# Name,   Type, SubType, Offset,  Size, Flags
-# Note: if you have increased the bootloader size, make sure to update the offsets to avoid overlap
-# Name,   Type, SubType, Offset,  Size, Flags
-# Note: if you have increased the bootloader size, make sure to update the offsets to avoid overlap
-nvs,      data, nvs,     0x9000,  24K,
-phy_init, data, phy,     0xf000,  4K,
-factory,  app,  factory, 0x10000, 3M,
+# Name,   Type, SubType, Offset,   Size, Flags
+# Ausgelegt fuer 4 MB Flash mit OTA-Unterstuetzung (ota_0 + ota_1).
+# Falls dein Board 8 MB Flash hat, koennen ota_0 und ota_1 auf je 3M vergroessert werden.
+nvs,      data, nvs,     0x9000,   24K,
+otadata,  data, ota,     0xf000,   8K,
+phy_init, data, phy,     0x11000,  4K,
+ota_0,    app,  ota_0,   0x20000,  1856K,
+ota_1,    app,  ota_1,   0x1F0000, 1856K,
