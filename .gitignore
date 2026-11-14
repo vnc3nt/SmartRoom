@@ -1,26 +1,27 @@
-
-# macOS files
-.DS_Store
-**/.DS_Store
-
-# ESP-IDF Build artifacts
+# Generated output and local configuration
 /build/
 build/
-*.bin
-*.elf
-*.map
-*.obj
-*.a
+managed_components/
+sdkconfig
+sdkconfig.old
+sdkconfig.local
+sdkconfig.defaults.local
+wifi_credentials.h
+main/wifi_credentials.h
+.env
+.env.*
+!.env.example
 
-# Backup files
+# macOS/editor/backup files
+.DS_Store
+**/.DS_Store
 *.bak
 *.old
-
-# ESP-IDF dependencies
-dependencies.lock
-sdkconfig.old
-esp-idf/
+.vscode/
 
 # Python
 __pycache__/
 *.pyc
+.pytest_cache/
+
+# Keep dependencies.lock tracked for reproducible application dependencies.
