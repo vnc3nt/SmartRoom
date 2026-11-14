@@ -6,10 +6,9 @@
 namespace smartroom {
 namespace {
 constexpr uint16_t kNoiseMinUs = 120;
-constexpr uint16_t kBucketUs = 50;
+constexpr uint32_t kBucketUs = 50;
 constexpr float kToleranceRatio = 0.2f;
 constexpr uint16_t kToleranceFloorUs = 150;
-
 uint32_t fnv1a_append(uint32_t h, uint32_t v)
 {
     for (int i = 0; i < 4; ++i) {
@@ -24,38 +23,39 @@ std::vector<uint16_t> normalize_timings(const std::vector<uint16_t> &durations)
 {
     std::vector<uint16_t> out;
     out.reserve(durations.size());
-
     for (uint16_t d : durations) {
+        // Keep every interval: dropping one changes subsequent mark/space parity.
+        // Keep short pulses exact; quantization must not turn them into zero.
         if (d < kNoiseMinUs) {
+            out.push_back(d);
             continue;
         }
-        uint16_t quantized = static_cast<uint16_t>(((d + kBucketUs / 2) / kBucketUs) * kBucketUs);
-        if (quantized == 0) {
-            continue;
-        }
-        out.push_back(quantized);
-    }
-
-    while (!out.empty() && out.back() <= kNoiseMinUs) {
-        out.pop_back();
+        const uint32_t rounded = ((uint32_t{d} + kBucketUs / 2) / kBucketUs) * kBucketUs;
+        out.push_back(static_cast<uint16_t>(std::min<uint32_t>(rounded, UINT16_MAX)));
     }
     return out;
 }
 
 bool is_duplicate_signal(const IrSignal &lhs, const IrSignal &rhs)
 {
-    std::vector<uint16_t> a = normalize_timings(lhs.durations_us);
-    std::vector<uint16_t> b = normalize_timings(rhs.durations_us);
-
+    if (lhs.level0 != rhs.level0 || lhs.carrier_hz != rhs.carrier_hz ||
+        lhs.carrier_active_high != rhs.carrier_active_high) {
+        return false;
+    }
+    const auto a = normalize_timings(lhs.durations_us);
+    const auto b = normalize_timings(rhs.durations_us);
     if (a.size() != b.size() || a.empty()) {
         return false;
     }
-
-    for (size_t i = 0; i < a.size(); ++i) {
-        uint16_t ref = std::max(a[i], b[i]);
-        uint16_t abs_diff = static_cast<uint16_t>(std::abs(static_cast<int>(a[i]) - static_cast<int>(b[i])));
-        uint16_t tolerated = std::max<uint16_t>(kToleranceFloorUs, static_cast<uint16_t>(ref * kToleranceRatio));
-        if (abs_diff > tolerated) {
+    for (std::size_t i = 0; i < a.size(); ++i) {
+        if (a[i] == 0 || b[i] == 0) {
+            return false;
+        }
+        const uint16_t ref = std::max(a[i], b[i]);
+        const int difference = std::abs(static_cast<int>(a[i]) - static_cast<int>(b[i]));
+        const uint16_t tolerated = std::max<uint16_t>(kToleranceFloorUs,
+            static_cast<uint16_t>(ref * kToleranceRatio));
+        if (difference > tolerated) {
             return false;
         }
     }
@@ -64,6 +64,7 @@ bool is_duplicate_signal(const IrSignal &lhs, const IrSignal &rhs)
 
 uint32_t stable_signal_id(const IrSignal &signal)
 {
+    // Preserve the existing hash layout; collisions still require store-level checks.
     uint32_t h = 2166136261u;
     h = fnv1a_append(h, signal.level0 ? 1u : 0u);
     for (uint16_t d : normalize_timings(signal.durations_us)) {
@@ -72,7 +73,7 @@ uint32_t stable_signal_id(const IrSignal &signal)
     return h;
 }
 
-IrFrameValidation validate_frame(const std::vector<uint16_t> &durations, size_t max_symbols)
+IrFrameValidation validate_frame(const std::vector<uint16_t> &durations, std::size_t max_symbols)
 {
     IrFrameValidation status;
     if (durations.empty()) {
@@ -82,18 +83,16 @@ IrFrameValidation validate_frame(const std::vector<uint16_t> &durations, size_t 
         status.overflow = true;
         return status;
     }
-
-    size_t small = 0;
+    std::size_t small = 0;
+    bool has_zero = false;
     for (uint16_t d : durations) {
-        if (d < kNoiseMinUs) {
-            ++small;
-        }
+        small += d < kNoiseMinUs;
+        has_zero = has_zero || d == 0;
     }
-
-    status.noisy = (small * 3) > durations.size();
+    status.noisy = small > durations.size() / 3;
+    // Conservative policy: short/repeat-only captures are not new commands.
     status.repeat = durations.size() <= 4;
-    status.ok = !status.noisy;
+    status.ok = !status.noisy && !status.repeat && !has_zero;
     return status;
 }
-
 } // namespace smartroom
