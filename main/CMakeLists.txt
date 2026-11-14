@@ -1,6 +1,20 @@
-idf_component_register(SRCS "smart.c" "ir_nec_encoder.c"
-                       PRIV_REQUIRES esp_driver_rmt esp_matter
-                       INCLUDE_DIRS ".")
-
-
-# ir_nec_transceiver_main
+idf_component_register(
+    SRCS
+        "app_main.cpp"
+        "smartroom_ir_codec.cpp"
+        "smartroom_store.cpp"
+        "smartroom_store_record.cpp"
+        "smartroom_learning.cpp"
+        "smartroom_ir_rmt.cpp"
+        "smartroom_rgb.cpp"
+    PRIV_REQUIRES
+        esp_driver_gpio
+        esp_driver_ledc
+        esp_driver_rmt
+        nvs_flash
+        esp_timer
+        esp_matter
+        freertos
+    INCLUDE_DIRS
+        "."
+)

@@ -1,114 +1,94 @@
-# Still in Progress!
+# SmartRoom (ESP-IDF + ESP-Matter, ESP32-C6)
 
-| Supported Targets | ESP32 | ESP32-C3 | ESP32-C5 | ESP32-C6 | ESP32-H2 | ESP32-P4 | ESP32-S2 | ESP32-S3 |
-| ----------------- | ----- | -------- | -------- | -------- | -------- | -------- | -------- | -------- |
-# IR NEC Encoding and Decoding Example
+## Status
+Diese Firmware wurde auf **ESP-IDF + ESP-Matter** umgestellt. Ziel aus der Repository-Konfiguration:
+- `CONFIG_IDF_TARGET="esp32c6"` (aus `sdkconfig`)
 
-(See the README.md file in the upper level 'examples' directory for more information about examples.)
+> Wichtig: Dieses Repository enthält aktuell keine nachweisbare Board-spezifische Pinbelegung außer den Kconfig-Defaults. Deshalb ist die Hardware-Konfiguration explizit per Kconfig erforderlich.
 
-[NEC](https://www.sbprojects.net/knowledge/ir/nec.php) is a common use IR protocol, this example creates a TX channel and sends out the IR NEC signals periodically. The signal is modulated with a 38KHz carrier. The example also creates an RX channel, to receive and parse the IR NEC signals into scan codes.
+## Reproduzierbare Toolchain / Versionen
+Gepinnte Komponenten:
+- ESP-IDF: `5.5.0` (siehe `dependencies.lock`)
+- ESP-Matter: `1.4.0` (siehe `idf_component.yaml`)
 
+Empfohlener Setup:
+1. ESP-IDF 5.5.0 installieren/aktivieren
+2. Im Repo bauen:
+   - `idf.py set-target esp32c6`
+   - `idf.py reconfigure`
+   - `idf.py build`
+   - `idf.py -p <PORT> flash monitor`
 
+## Architektur
+Module (Main):
+- `app_main.cpp`: Matter-Node, Aggregator, Bridged-Endpunkte, Worker-Queues
+- `smartroom_ir_rmt.*`: Raw-IR Capture/Replay via RMT
+- `smartroom_ir_codec.*`: Normalisierung, Duplikaterkennung, stabile Signal-ID
+- `smartroom_store.*` + `smartroom_store_record.*`: NVS-Persistenz (Version + CRC)
+- `smartroom_learning.*`: Entprellte Long-Press-Lernzustandsmaschine
+- `smartroom_rgb.*`: RGB-Backend-Auswahl (sicherer Default: deaktiviert)
 
-## How to Use Example
+## Lernen und IR-Wiedergabe
+- Langer Tastendruck (konfigurierbar) startet den Lernmodus.
+- IR wird als **demodulierte Pulszeiten** per RMT erfasst (nicht nur NEC-Bytes).
+- Validierung gegen Rauschen/Überlauf, sichere Grenzen (`CONFIG_SMARTROOM_IR_MAX_SYMBOLS`).
+- Duplikaterkennung über timing-tolerante Normalisierung (nicht rohe Byte-Gleichheit).
+- Persistenz in eigener NVS-Namespace `smartroom_ir` mit Record-Version und CRC.
+- Gelernte Signale werden als bridged `On/Off Plug-in Unit` Endpunkte unter einem Aggregator erstellt.
+- `On` löst genau eine IR-Wiedergabe aus, danach wird der OnOff-Status asynchron wieder auf `false` gesetzt. `Off` sendet nichts.
 
-### Hardware Required
+### Physikalische Limitierung (wichtig)
+Ein **demodulierender IR-Empfänger** kann die ursprüngliche Trägerfrequenz nicht messen; gespeichert wird nur die Hüllkurve (Puls-/Pausenzeiten). Deshalb kann nicht garantiert werden, dass jedes proprietäre Protokoll bzw. jedes Gerät zuverlässig replizierbar ist.
 
-* A development board with supported SoC mentioned in the above `Supported Targets` table
-* An USB cable for power supply and programming
-* A 5mm infrared LED (e.g. IR333C) used to transmit encoded IR signals
-* An infrared receiver module (e.g. IRM-3638T), which integrates a demodulator and AGC circuit
+## RGB-Endpunkt
+Zusätzlicher Matter-Endpunkt: `extended_color_light` (On/Off, Helligkeit, Farbe).
 
-### Hardware Connection
+Backend-Auswahl per Kconfig:
+- `SMARTROOM_RGB_BACKEND_NONE` (Default, sicher)
+- `SMARTROOM_RGB_BACKEND_ANALOG` (LEDC + MOSFET-Treiber)
+- `SMARTROOM_RGB_BACKEND_WS2812` (aktuell als nicht unterstützt blockiert, bis dedizierter Treiber aktiv)
 
-```
-   IR Receiver (IRM-3638T)                 ESP Board                        IR Transmitter (IR333C)
-+--------------------------+       +----------------------+              +---------------------------+
-|                        RX+-------+IR_RX_GPIO  IR_TX_GPIO+--------------+TX                         |
-|                          |       |                      |              |                           |
-|                       3V3+-------+3V3                 5V+--------------+VCC                        |
-|                          |       |                      |              |                           |
-|                       GND+-------+GND                GND+--------------+GND                        |
-+--------------------------+       +----------------------+              +---------------------------+
-```
+Sicherheitsprinzip:
+- Kein RGB-Ausgang, solange keine gültige Hardware-Konfiguration vorliegt.
+- Keine stillschweigende Pin-Annahme.
 
-The TX and RX GPIO number used by this example can be changed in [the source file](main/ir_nec_transceiver_main.c) via `EXAMPLE_IR_TX_GPIO_NUM` and `EXAMPLE_IR_RX_GPIO_NUM`.
+## Verdrahtungshinweise
+- IR-LED **nicht direkt** an GPIO mit hohem Strom betreiben; geeigneten Treibertransistor verwenden.
+- Externe Versorgung für LED-Strips, gemeinsame Masse (GND) mit ESP.
+- Bei 5V-WS2812 i.d.R. Pegelwandler für Datensignal notwendig.
+- Analoge RGB-Strips nur über MOSFET-Treiberstufe.
 
-### Build and Flash
+## Konfiguration (Kconfig)
+Wichtige Optionen in `Kconfig.projbuild`:
+- IR: RX/TX GPIO, RMT-Auflösung, Standard-Trägerfrequenz, Symbol-Limits
+- Button: GPIO, Debounce, Long-Press, Lern-Timeout
+- RGB: Backend-Typ, GPIOs, Polarität, LED-Anzahl/Channel-Order
 
-Run `idf.py -p PORT flash monitor` to build, flash and monitor the project.
+## Persistenz und Wartung
+- Namespace: `smartroom_ir`
+- Kommissionierungsdaten bleiben erhalten (kein globales NVS-Löschen durch Lernfunktion).
+- APIs für `list/delete/clear` sind getrennt vom Factory-Reset vorgesehen (`smartroom_learned_signal_count`, `smartroom_learned_signal_delete`, `smartroom_learned_signal_clear`); Factory-Reset wird vom Lernpfad nicht ausgelöst.
 
-(To exit the serial monitor, type ``Ctrl-]``.)
+## Home-App / UI-Semantik
+- Gelernte Signale erscheinen als eigene bridged Aktor-Endpunkte.
+- Wiederholtes Auslösen erfolgt über momentanes `On` (automatisches Rücksetzen auf `Off`).
 
-See the [Getting Started Guide](https://docs.espressif.com/projects/esp-idf/en/latest/get-started/index.html) for full steps to configure and use ESP-IDF to build projects.
+Einschränkung:
+- Live-Discovery/Refresh-Verhalten von Apple Home bei dynamischen Endpunkten ist controllerabhängig; ggf. Controller-App neu öffnen/refreshen (nicht-destruktiver Fallback).
 
-## Example Output
+## Partitionen
+Verwendet benutzerdefinierte Partitionstabelle `partitions.csv` mit dediziertem NVS-Bereich.
 
-Run this example, you might see the following output log:
+## Tests
+Host-Tests unter `tests/host`:
+- Duplikatnormalisierung
+- Persistenz-Record-Integrität (CRC/Decode)
+- Lernzustandsmaschine (Long-Press/Cancel)
 
-```
-...
-I (0) cpu_start: Starting scheduler on APP CPU.
-I (306) example: create RMT RX channel
-I (306) gpio: GPIO[19]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0
-I (316) example: register RX done callback
-I (316) example: create RMT TX channel
-I (326) gpio: GPIO[18]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0
-I (336) example: modulate carrier to TX channel
-I (336) example: install IR NEC encoder
-I (346) example: start RMT TX and RX channel
-
-NEC frame start---
-{0:9020},{1:4461}
-{0:577},{1:577}
-{0:577},{1:576}
-{0:552},{1:601}
-{0:552},{1:601}
-{0:577},{1:576}
-{0:578},{1:575}
-{0:583},{1:572}
-{0:579},{1:574}
-{0:576},{1:1648}
-{0:553},{1:1673}
-{0:579},{1:1647}
-{0:580},{1:1645}
-{0:577},{1:1649}
-{0:554},{1:1673}
-{0:578},{1:1648}
-{0:553},{1:1673}
-{0:555},{1:1671}
-{0:578},{1:577}
-{0:553},{1:1673}
-{0:554},{1:1671}
-{0:555},{1:601}
-{0:580},{1:574}
-{0:551},{1:603}
-{0:580},{1:574}
-{0:553},{1:601}
-{0:553},{1:1672}
-{0:554},{1:602}
-{0:552},{1:603}
-{0:579},{1:1646}
-{0:554},{1:1672}
-{0:555},{1:1672}
-{0:580},{1:1646}
-{0:555},{1:0}
----NEC frame end: Address=FF00, Command=F20D
-
-NEC frame start---
-{0:9024},{1:2213}
-{0:583},{1:0}
----NEC frame end: Address=FF00, Command=F20D, repeat
-
-NEC frame start---
-{0:584},{1:0}
----NEC frame end: Unknown NEC frame
-
-...
-```
-
-In the example's main loop, the RX channel waits for any NEC frames, if nothing received within 1 second, the TX channel will send out a predefined NEC frame (address=0x0440, command=0x3003).
+Ausführung:
+- `cmake -S tests/host -B tests/host/build && cmake --build tests/host/build && ctest --test-dir tests/host/build`
 
 ## Troubleshooting
-
-For any technical queries, please open an [issue] (https://github.com/espressif/esp-idf/issues) on GitHub. We will get back to you soon.
+- Bei Build-Fehlern zuerst `idf.py reconfigure` nach Toolchain-/Komponentenwechsel ausführen.
+- Bei fehlender RGB-Ausgabe prüfen, ob ein gültiges Backend konfiguriert wurde.
+- Bei Lernproblemen auf IR-Empfängerposition, Umgebungslicht und Signalrauschen achten.
