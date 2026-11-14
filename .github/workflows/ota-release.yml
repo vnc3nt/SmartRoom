@@ -1,0 +1,40 @@
+name: Build & Publish OTA Release
+
+on:
+  push:
+    branches:
+      - update_release
+
+permissions:
+  contents: write
+
+jobs:
+  build-ota:
+    runs-on: ubuntu-latest
+    container:
+      image: espressif/idf:v5.4.1
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set target esp32c6 & build firmware
+        run: |
+          idf.py set-target esp32c6
+          idf.py build
+
+      - name: Create version.json
+        run: |
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          echo "{\"version\": \"${SHORT_SHA}\"}" > build/version.json
+
+      - name: Publish OTA Release (latest-ota)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest-ota
+          name: SmartRoom OTA Latest
+          prerelease: false
+          files: |
+            build/SmartRoom.bin
+            build/version.json

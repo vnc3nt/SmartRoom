@@ -7,6 +7,7 @@ idf_component_register(
         "smartroom_learning.cpp"
         "smartroom_ir_rmt.cpp"
         "smartroom_rgb.cpp"
+        "smartroom_ota.cpp"
         "led_strip_encoder.c"
     PRIV_REQUIRES
         esp_driver_gpio
@@ -15,6 +16,11 @@ idf_component_register(
         nvs_flash
         esp_timer
         esp_matter
+        esp_https_ota
+        esp_http_client
+        app_update
+        json
+        mbedtls
         freertos
     INCLUDE_DIRS
         "."
