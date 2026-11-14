@@ -14,5 +14,6 @@
     },
     "idf.flashType": "UART",
     "git.ignoreLimitWarning": true,
-    "git.autoRepositoryDetection": false
+    "git.autoRepositoryDetection": false,
+    "idf.currentSetup": "/Users/vnc3nt/esp/esp-idf"
 }

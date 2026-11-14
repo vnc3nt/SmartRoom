@@ -1,0 +1,26 @@
+
+# macOS files
+.DS_Store
+**/.DS_Store
+
+# ESP-IDF Build artifacts
+/build/
+build/
+*.bin
+*.elf
+*.map
+*.obj
+*.a
+
+# Backup files
+*.bak
+*.old
+
+# ESP-IDF dependencies
+dependencies.lock
+sdkconfig.old
+esp-idf/
+
+# Python
+__pycache__/
+*.pyc

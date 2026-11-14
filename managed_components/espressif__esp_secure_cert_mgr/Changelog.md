@@ -1,5 +1,17 @@
 # This file contains the list of changes across different versions
 
+## v2.7.0
+* Added support for PSA APIs
+
+## v2.6.1
+* Update Kconfig to reflect the Digital Signature peripheral support
+
+##v2.6.0
+* Added TLV type for TEE Secure storage key
+
+## v2.5.1
+* Updated the esp_secure_cert_app Logging: If the certificates and keys are stored in binary form, the hexdump is printed on console.
+
 ## v2.5.0
 * Assigned 2 project specific entries for Matter project in the list of TLV entries
 

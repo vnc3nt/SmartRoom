@@ -1,13 +1,7 @@
 cmake_minimum_required(VERSION 3.31)
 
-set(ENV{ESP_MATTER_PATH} "/Users/vnc3nt/esp/esp-matter")
-
-
-# ESP-Matter-Komponenten einbinden (VOR dem project.cmake Include!)
-set(EXTRA_COMPONENT_DIRS "/Users/vnc3nt/esp/esp-matter/components"
-                       "/Users/vnc3nt/esp/esp-matter/device_hal/device/esp32c6_devkit_c"
-                       "/Users/vnc3nt/esp/esp-matter/connectedhomeip/connectedhomeip/config/esp32/components")
-
+# Partition table
+set(PARTITION_CSV_PATH "partitions.csv")
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(SmartRoom)
