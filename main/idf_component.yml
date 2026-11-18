@@ -7,4 +7,3 @@ dependencies:
   # ESP Matter - Matter protocol support
   espressif/esp_matter:
     version: '>=1.2.0'
-    override_path: '../managed_components/espressif__esp_matter'
