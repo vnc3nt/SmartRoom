@@ -121,10 +121,11 @@ esp_err_t IrRmt::transmit(const IrSignal &signal)
     m_tx_symbols.clear();
     for (size_t i = 0; i < signal.durations_us.size(); i += 2) {
         rmt_symbol_word_t word = {};
-        word.level0 = (i % 4 == 0) ? signal.level0 : !signal.level0;
+        // IR-Empfaenger ist active-low (Pulse=0, Pause=1), RMT-TX-Carrier ist active-high (Pulse=1, Pause=0).
+        word.level0 = 1;
         word.duration0 = signal.durations_us[i];
         if (i + 1 < signal.durations_us.size()) {
-            word.level1 = !word.level0;
+            word.level1 = 0;
             word.duration1 = signal.durations_us[i + 1];
         }
         m_tx_symbols.push_back(word);
