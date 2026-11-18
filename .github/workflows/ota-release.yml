@@ -18,7 +18,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set target esp32c6 & build firmware
+        shell: bash
         run: |
+          source /opt/esp/idf/export.sh
           idf.py set-target esp32c6
           idf.py build
 
