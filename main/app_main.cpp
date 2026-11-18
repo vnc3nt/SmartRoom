@@ -99,10 +99,12 @@ void enqueue_cmd(const WorkerCmd &cmd)
 
 void reset_momentary_onoff(uint16_t endpoint_id)
 {
+    esp_matter::lock::chip_stack_lock(portMAX_DELAY);
     g_internal_onoff_update.store(true);
     esp_matter_attr_val_t off_val = esp_matter_bool(false);
     attribute::update(endpoint_id, OnOff::Id, OnOff::Attributes::OnOff::Id, &off_val);
     g_internal_onoff_update.store(false);
+    esp_matter::lock::chip_stack_unlock();
 }
 
 void worker_task(void *)
@@ -176,8 +178,11 @@ void worker_task(void *)
                         ESP_LOGE(TAG, "Failed to persist learned signal");
                     } else {
                         g_signals.push_back(captured);
+                        esp_matter::lock::chip_stack_lock(portMAX_DELAY);
                         node_t *node = node::get();
-                        if (!node || create_signal_endpoint(node, captured) != ESP_OK) {
+                        esp_err_t ep_err = (!node) ? ESP_FAIL : create_signal_endpoint(node, captured);
+                        esp_matter::lock::chip_stack_unlock();
+                        if (ep_err != ESP_OK) {
                             g_store.erase(captured.stable_id);
                             g_signals.pop_back();
                             ESP_LOGE(TAG, "Endpoint allocation failed, rolled back signal");
@@ -230,6 +235,7 @@ void worker_task(void *)
                 }
             };
 
+            esp_matter::lock::chip_stack_lock(portMAX_DELAY);
             read_attr(OnOff::Id, OnOff::Attributes::OnOff::Id, onoff);
             read_attr(LevelControl::Id, LevelControl::Attributes::CurrentLevel::Id, level);
             read_attr(ColorControl::Id, ColorControl::Attributes::CurrentHue::Id, hue);
@@ -238,6 +244,7 @@ void worker_task(void *)
             read_attr(ColorControl::Id, ColorControl::Attributes::CurrentY::Id, cy);
             read_attr(ColorControl::Id, ColorControl::Attributes::ColorTemperatureMireds::Id, mireds);
             read_attr(ColorControl::Id, ColorControl::Attributes::ColorMode::Id, cmode);
+            esp_matter::lock::chip_stack_unlock();
 
             smartroom::RgbState rgb = {
                 .on = onoff.val.b,
