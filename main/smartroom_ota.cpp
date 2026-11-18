@@ -24,38 +24,39 @@ constexpr const char *kFirmwareUrl =
 
 constexpr uint32_t kOtaCheckIntervalMs = 6 * 60 * 60 * 1000; // Alle 6 Stunden
 
+esp_err_t http_event_handler(esp_http_client_event_t *evt)
+{
+    if (evt->event_id == HTTP_EVENT_ON_DATA && evt->user_data && evt->data_len > 0) {
+        auto *body = static_cast<std::string *>(evt->user_data);
+        if (body->size() + evt->data_len <= 2048) {
+            body->append(static_cast<const char *>(evt->data), evt->data_len);
+        }
+    }
+    return ESP_OK;
+}
+
 esp_err_t fetch_remote_version(std::string &out_version)
 {
+    std::string body;
     esp_http_client_config_t cfg = {};
     cfg.url = kVersionUrl;
     cfg.crt_bundle_attach = esp_crt_bundle_attach;
     cfg.timeout_ms = 10000;
+    cfg.buffer_size = 2048;
+    cfg.buffer_size_tx = 2048;
+    cfg.event_handler = http_event_handler;
+    cfg.user_data = &body;
 
     esp_http_client_handle_t client = esp_http_client_init(&cfg);
     if (!client) {
         return ESP_ERR_NO_MEM;
     }
 
-    esp_err_t err = esp_http_client_open(client, 0);
-    if (err != ESP_OK) {
-        esp_http_client_cleanup(client);
-        return err;
-    }
-
-    int content_len = esp_http_client_fetch_headers(client);
+    esp_err_t err = esp_http_client_perform(client);
     int status = esp_http_client_get_status_code(client);
-    if (status != 200 || content_len <= 0 || content_len > 1024) {
-        esp_http_client_close(client);
-        esp_http_client_cleanup(client);
-        return ESP_FAIL;
-    }
-
-    std::string body(static_cast<size_t>(content_len), '\0');
-    int read_len = esp_http_client_read_response(client, body.data(), content_len);
-    esp_http_client_close(client);
     esp_http_client_cleanup(client);
 
-    if (read_len <= 0) {
+    if (err != ESP_OK || status != 200 || body.empty()) {
         return ESP_FAIL;
     }
 
@@ -106,6 +107,8 @@ esp_err_t ota_check_and_update()
     http_cfg.url = kFirmwareUrl;
     http_cfg.crt_bundle_attach = esp_crt_bundle_attach;
     http_cfg.timeout_ms = 30000;
+    http_cfg.buffer_size = 2048;
+    http_cfg.buffer_size_tx = 2048;
 
     esp_https_ota_config_t ota_cfg = {};
     ota_cfg.http_config = &http_cfg;
