@@ -2,11 +2,14 @@ name: Build & Publish OTA Release
 
 on:
   push:
-    branches:
-      - update_release
+    branches: [main, update_release]
+
+concurrency:
+  group: smartroom-ota-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build-ota:
@@ -14,27 +17,54 @@ jobs:
     container:
       image: espressif/idf:v5.4.1
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - name: Build and validate ESP32-C6 firmware
+        shell: bash
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          source /opt/esp/idf/export.sh
+          VERSION=${GITHUB_SHA:0:12}
+          idf.py -DIDF_TARGET=esp32c6 -DPROJECT_VER="$VERSION" build
+          python - "$VERSION" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          image = Path('build/SmartRoom.bin').read_bytes()
+          if not 80 <= len(image) <= 1920 * 1024:
+              raise SystemExit('Invalid OTA image size')
+          if image[0] != 0xe9 or image[32:36] != bytes.fromhex('3254cdab'):
+              raise SystemExit('Missing ESP application descriptor')
+          version = image[48:80].split(b'\0', 1)[0].decode('ascii')
+          if version != sys.argv[1]:
+              raise SystemExit(f'Unexpected firmware version: {version!r}')
+          Path('build/version.json').write_text(json.dumps({'version': version}) + '\n', encoding='utf-8')
+          PY
+      - uses: actions/upload-artifact@v4
         with:
-          submodules: recursive
+          name: smartroom-ota
+          if-no-files-found: error
+          path: |
+            build/SmartRoom.bin
+            build/version.json
 
-      - name: Set target esp32c6 & build firmware
-        run: |
-          idf.py set-target esp32c6
-          idf.py build
-
-      - name: Create version.json
-        run: |
-          SHORT_SHA=$(git rev-parse --short HEAD)
-          echo "{\"version\": \"${SHORT_SHA}\"}" > build/version.json
-
-      - name: Publish OTA Release (latest-ota)
-        uses: softprops/action-gh-release@v2
+  publish-ota:
+    if: github.ref == 'refs/heads/update_release'
+    needs: build-ota
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: smartroom-ota
+          path: build
+      - uses: softprops/action-gh-release@v2
         with:
           tag_name: latest-ota
           name: SmartRoom OTA Latest
           prerelease: false
+          fail_on_unmatched_files: true
           files: |
             build/SmartRoom.bin
             build/version.json
