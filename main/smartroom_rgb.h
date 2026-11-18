@@ -30,7 +30,8 @@ struct RgbState {
     uint8_t saturation = 0;
     uint16_t color_x = 20480; // D65 White (~0.3127)
     uint16_t color_y = 21560; // D65 White (~0.3290)
-    bool use_xy = true;
+    uint16_t color_temp_mireds = 250;
+    uint8_t color_mode = 1; // 0 = Hue/Sat, 1 = XY, 2 = ColorTemperature
 };
 
 class RgbBackend {

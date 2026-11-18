@@ -9,6 +9,8 @@
 #include "driver/rmt_tx.h"
 #include "esp_check.h"
 #include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "led_strip_encoder.h"
 
 namespace smartroom {
@@ -100,6 +102,38 @@ void hsv_to_rgb(uint8_t hue, uint8_t sat, uint8_t brightness_percent,
     *out_r = static_cast<uint8_t>(std::round((r + m) * 255.0f));
     *out_g = static_cast<uint8_t>(std::round((g + m) * 255.0f));
     *out_b = static_cast<uint8_t>(std::round((b + m) * 255.0f));
+}
+
+void mireds_to_rgb(uint16_t mireds, uint8_t brightness_percent,
+                   uint8_t *out_r, uint8_t *out_g, uint8_t *out_b)
+{
+    if (mireds == 0) {
+        mireds = 250;
+    }
+    double temp = (1000000.0 / static_cast<double>(mireds)) / 100.0;
+    double r = 255.0, g = 255.0, b = 255.0;
+
+    if (temp <= 66.0) {
+        r = 255.0;
+        g = 99.4708025861 * std::log(temp) - 161.1195681661;
+        b = (temp <= 19.0) ? 0.0 : (138.5177312231 * std::log(temp - 10.0) - 305.0447927307);
+    } else {
+        r = 329.698727446 * std::pow(temp - 60.0, -0.1332047592);
+        g = 288.1221695283 * std::pow(temp - 60.0, -0.0755148492);
+        b = 255.0;
+    }
+
+    auto clamp255 = [](double v) {
+        return v < 0.0 ? 0.0 : (v > 255.0 ? 255.0 : v);
+    };
+
+    int ri = static_cast<int>(std::round(clamp255(r))) * brightness_percent / 100;
+    int gi = static_cast<int>(std::round(clamp255(g))) * brightness_percent / 100;
+    int bi = static_cast<int>(std::round(clamp255(b))) * brightness_percent / 100;
+
+    *out_r = static_cast<uint8_t>(ri < 0 ? 0 : (ri > 255 ? 255 : ri));
+    *out_g = static_cast<uint8_t>(gi < 0 ? 0 : (gi > 255 ? 255 : gi));
+    *out_b = static_cast<uint8_t>(bi < 0 ? 0 : (bi > 255 ? 255 : bi));
 }
 } // namespace
 
@@ -200,10 +234,12 @@ esp_err_t RgbBackend::apply(const RgbState &state)
     uint8_t r = 0, g = 0, b = 0;
     if (state.on) {
         uint8_t brightness_pct = static_cast<uint8_t>((static_cast<uint16_t>(state.level) * 100U) / 254U);
-        if (state.use_xy) {
-            xyY_to_rgb(state.color_x, state.color_y, brightness_pct, &r, &g, &b);
-        } else {
+        if (state.color_mode == 0) {
             hsv_to_rgb(state.hue, state.saturation, brightness_pct, &r, &g, &b);
+        } else if (state.color_mode == 2) {
+            mireds_to_rgb(state.color_temp_mireds, brightness_pct, &r, &g, &b);
+        } else {
+            xyY_to_rgb(state.color_x, state.color_y, brightness_pct, &r, &g, &b);
         }
     }
 

@@ -7,6 +7,7 @@
 #include <app/server/Server.h>
 #include "driver/gpio.h"
 #include "esp_check.h"
+#include "esp_insights.h"
 #include "esp_log.h"
 #include "esp_matter.h"
 #include "esp_timer.h"
@@ -22,6 +23,10 @@
 #include "smartroom_rgb.h"
 #include "smartroom_store.h"
 
+#if __has_include("insights_secret.h")
+#include "insights_secret.h"
+#endif
+
 using namespace esp_matter;
 using namespace esp_matter::attribute;
 using namespace esp_matter::endpoint;
@@ -30,7 +35,7 @@ using namespace chip::app::Clusters;
 namespace {
 static const char *TAG = "smartroom";
 
-constexpr int kButtonGpio = 7;
+constexpr int kButtonGpio = smartroom::kPairingButtonGpio;
 constexpr uint32_t kPairingHoldMs = 3000;
 constexpr uint32_t kFactoryResetHoldMs = 10000;
 
@@ -70,10 +75,10 @@ bool endpoint_is_signal(uint16_t endpoint)
 
 esp_err_t create_signal_endpoint(node_t *node, const smartroom::IrSignal &signal)
 {
-    on_off_plug_in_unit::config_t cfg;
+    on_off_plugin_unit::config_t cfg;
     cfg.on_off.on_off = false;
 
-    endpoint_t *ep = on_off_plug_in_unit::create(node, &cfg, ENDPOINT_FLAG_DESTROYABLE, nullptr);
+    endpoint_t *ep = on_off_plugin_unit::create(node, &cfg, ENDPOINT_FLAG_DESTROYABLE, nullptr);
     ESP_RETURN_ON_FALSE(ep != nullptr, ESP_FAIL, TAG, "Failed to create bridged endpoint");
     if (g_node_aggregator) {
         endpoint::set_parent_endpoint(ep, g_node_aggregator);
@@ -81,7 +86,7 @@ esp_err_t create_signal_endpoint(node_t *node, const smartroom::IrSignal &signal
 
     uint16_t id = endpoint::get_id(ep);
     g_endpoint_to_signal[id] = signal.stable_id;
-    ESP_LOGI(TAG, "Learned signal endpoint created: ep=%u id=%\" PRIu32", id, signal.stable_id);
+    ESP_LOGI(TAG, "Learned signal endpoint created: ep=%u id=%" PRIu32, id, signal.stable_id);
     return ESP_OK;
 }
 
@@ -164,7 +169,7 @@ void worker_task(void *)
                     }
 
                     if (duplicate) {
-                        ESP_LOGI(TAG, "Duplicate IR signal ignored id=%\" PRIu32", captured.stable_id);
+                        ESP_LOGI(TAG, "Duplicate IR signal ignored id=%" PRIu32, captured.stable_id);
                     } else if (g_signals.size() >= smartroom::kIrMaxSignals) {
                         ESP_LOGE(TAG, "Signal store full (%u)", static_cast<unsigned>(smartroom::kIrMaxSignals));
                     } else if (g_store.upsert(captured) != ESP_OK) {
@@ -177,7 +182,7 @@ void worker_task(void *)
                             g_signals.pop_back();
                             ESP_LOGE(TAG, "Endpoint allocation failed, rolled back signal");
                         } else {
-                            ESP_LOGI(TAG, "Learned new signal id=%\" PRIu32", captured.stable_id);
+                            ESP_LOGI(TAG, "Learned new signal id=%" PRIu32, captured.stable_id);
                         }
                     }
                 }
@@ -196,7 +201,7 @@ void worker_task(void *)
             if (it != g_signals.end()) {
                 esp_err_t err = g_ir.transmit(*it);
                 if (err != ESP_OK) {
-                    ESP_LOGW(TAG, "IR replay failed id=%\" PRIu32 \" err=%s\", it->stable_id, esp_err_to_name(err));
+                    ESP_LOGW(TAG, "IR replay failed id=%" PRIu32 " err=%s", it->stable_id, esp_err_to_name(err));
                 }
             }
             enqueue_cmd({WorkerCmdType::ResetOnOff, cmd.endpoint_id, cmd.stable_id});
@@ -216,15 +221,23 @@ void worker_task(void *)
             esp_matter_attr_val_t sat = esp_matter_invalid(nullptr);
             esp_matter_attr_val_t cx = esp_matter_invalid(nullptr);
             esp_matter_attr_val_t cy = esp_matter_invalid(nullptr);
+            esp_matter_attr_val_t mireds = esp_matter_invalid(nullptr);
             esp_matter_attr_val_t cmode = esp_matter_invalid(nullptr);
 
-            attribute::get(cmd.endpoint_id, OnOff::Id, OnOff::Attributes::OnOff::Id, &onoff);
-            attribute::get(cmd.endpoint_id, LevelControl::Id, LevelControl::Attributes::CurrentLevel::Id, &level);
-            attribute::get(cmd.endpoint_id, ColorControl::Id, ColorControl::Attributes::CurrentHue::Id, &hue);
-            attribute::get(cmd.endpoint_id, ColorControl::Id, ColorControl::Attributes::CurrentSaturation::Id, &sat);
-            attribute::get(cmd.endpoint_id, ColorControl::Id, ColorControl::Attributes::CurrentX::Id, &cx);
-            attribute::get(cmd.endpoint_id, ColorControl::Id, ColorControl::Attributes::CurrentY::Id, &cy);
-            attribute::get(cmd.endpoint_id, ColorControl::Id, ColorControl::Attributes::ColorMode::Id, &cmode);
+            auto read_attr = [&](uint32_t cluster_id, uint32_t attr_id, esp_matter_attr_val_t &out) {
+                if (attribute_t *attr = attribute::get(cmd.endpoint_id, cluster_id, attr_id)) {
+                    attribute::get_val(attr, &out);
+                }
+            };
+
+            read_attr(OnOff::Id, OnOff::Attributes::OnOff::Id, onoff);
+            read_attr(LevelControl::Id, LevelControl::Attributes::CurrentLevel::Id, level);
+            read_attr(ColorControl::Id, ColorControl::Attributes::CurrentHue::Id, hue);
+            read_attr(ColorControl::Id, ColorControl::Attributes::CurrentSaturation::Id, sat);
+            read_attr(ColorControl::Id, ColorControl::Attributes::CurrentX::Id, cx);
+            read_attr(ColorControl::Id, ColorControl::Attributes::CurrentY::Id, cy);
+            read_attr(ColorControl::Id, ColorControl::Attributes::ColorTemperatureMireds::Id, mireds);
+            read_attr(ColorControl::Id, ColorControl::Attributes::ColorMode::Id, cmode);
 
             smartroom::RgbState rgb = {
                 .on = onoff.val.b,
@@ -233,7 +246,8 @@ void worker_task(void *)
                 .saturation = sat.val.u8,
                 .color_x = cx.val.u16,
                 .color_y = cy.val.u16,
-                .use_xy = (cmode.val.u8 == static_cast<uint8_t>(ColorControl::ColorMode::kCurrentXAndCurrentY)),
+                .color_temp_mireds = mireds.val.u16,
+                .color_mode = cmode.val.u8,
             };
             g_rgb.apply(rgb);
             continue;
@@ -356,6 +370,16 @@ extern "C" void app_main(void)
 
     ESP_LOGI(TAG, "SmartRoom start (target: %s)", CONFIG_IDF_TARGET);
 
+#ifdef CONFIG_ESP_INSIGHTS_ENABLED
+    esp_insights_config_t insights_cfg = {
+        .log_type = ESP_DIAG_LOG_TYPE_ERROR | ESP_DIAG_LOG_TYPE_WARNING | ESP_DIAG_LOG_TYPE_EVENT,
+#ifdef SMARTROOM_INSIGHTS_AUTH_KEY
+        .auth_key = SMARTROOM_INSIGHTS_AUTH_KEY,
+#endif
+    };
+    esp_insights_init(&insights_cfg);
+#endif
+
     ESP_ERROR_CHECK(g_store.init());
     ESP_ERROR_CHECK(g_store.load_all(g_signals));
 
@@ -379,9 +403,9 @@ extern "C" void app_main(void)
     g_node_aggregator = aggregator::create(node, &agg_cfg, ENDPOINT_FLAG_NONE, nullptr);
     ESP_ERROR_CHECK(g_node_aggregator ? ESP_OK : ESP_FAIL);
 
-    on_off_plug_in_unit::config_t learn_cfg;
+    on_off_plugin_unit::config_t learn_cfg;
     learn_cfg.on_off.on_off = false;
-    endpoint_t *learn_ep = on_off_plug_in_unit::create(node, &learn_cfg, ENDPOINT_FLAG_NONE, nullptr);
+    endpoint_t *learn_ep = on_off_plugin_unit::create(node, &learn_cfg, ENDPOINT_FLAG_NONE, nullptr);
     ESP_ERROR_CHECK(learn_ep ? ESP_OK : ESP_FAIL);
     g_learn_endpoint = endpoint::get_id(learn_ep);
 
@@ -393,6 +417,11 @@ extern "C" void app_main(void)
     endpoint_t *rgb_ep = extended_color_light::create(node, &rgb_matter_cfg, ENDPOINT_FLAG_NONE, nullptr);
     ESP_ERROR_CHECK(rgb_ep ? ESP_OK : ESP_FAIL);
     g_rgb_endpoint = endpoint::get_id(rgb_ep);
+
+    if (cluster_t *color_cluster = cluster::get(rgb_ep, ColorControl::Id)) {
+        cluster::color_control::feature::hue_saturation::config_t hs_cfg;
+        cluster::color_control::feature::hue_saturation::add(color_cluster, &hs_cfg);
+    }
 
     for (const auto &sig : g_signals) {
         ESP_ERROR_CHECK(create_signal_endpoint(node, sig));
