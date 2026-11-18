@@ -30,7 +30,7 @@ using namespace chip::app::Clusters;
 namespace {
 static const char *TAG = "smartroom";
 
-constexpr int kButtonGpio = 7;
+constexpr int kButtonGpio = smartroom::kPairingButtonGpio;
 constexpr uint32_t kPairingHoldMs = 3000;
 constexpr uint32_t kFactoryResetHoldMs = 10000;
 
@@ -81,7 +81,7 @@ esp_err_t create_signal_endpoint(node_t *node, const smartroom::IrSignal &signal
 
     uint16_t id = endpoint::get_id(ep);
     g_endpoint_to_signal[id] = signal.stable_id;
-    ESP_LOGI(TAG, "Learned signal endpoint created: ep=%u id=%\" PRIu32", id, signal.stable_id);
+    ESP_LOGI(TAG, "Learned signal endpoint created: ep=%u id=%" PRIu32, id, signal.stable_id);
     return ESP_OK;
 }
 
@@ -164,7 +164,7 @@ void worker_task(void *)
                     }
 
                     if (duplicate) {
-                        ESP_LOGI(TAG, "Duplicate IR signal ignored id=%\" PRIu32", captured.stable_id);
+                        ESP_LOGI(TAG, "Duplicate IR signal ignored id=%" PRIu32, captured.stable_id);
                     } else if (g_signals.size() >= smartroom::kIrMaxSignals) {
                         ESP_LOGE(TAG, "Signal store full (%u)", static_cast<unsigned>(smartroom::kIrMaxSignals));
                     } else if (g_store.upsert(captured) != ESP_OK) {
@@ -177,7 +177,7 @@ void worker_task(void *)
                             g_signals.pop_back();
                             ESP_LOGE(TAG, "Endpoint allocation failed, rolled back signal");
                         } else {
-                            ESP_LOGI(TAG, "Learned new signal id=%\" PRIu32", captured.stable_id);
+                            ESP_LOGI(TAG, "Learned new signal id=%" PRIu32, captured.stable_id);
                         }
                     }
                 }
@@ -196,7 +196,7 @@ void worker_task(void *)
             if (it != g_signals.end()) {
                 esp_err_t err = g_ir.transmit(*it);
                 if (err != ESP_OK) {
-                    ESP_LOGW(TAG, "IR replay failed id=%\" PRIu32 \" err=%s\", it->stable_id, esp_err_to_name(err));
+                    ESP_LOGW(TAG, "IR replay failed id=%" PRIu32 " err=%s", it->stable_id, esp_err_to_name(err));
                 }
             }
             enqueue_cmd({WorkerCmdType::ResetOnOff, cmd.endpoint_id, cmd.stable_id});

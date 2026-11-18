@@ -28,19 +28,19 @@ esp_err_t IrRmt::init(const IrRmtConfig &cfg)
     m_rx_symbols.assign(cfg.max_symbols, {});
 
     rmt_rx_channel_config_t rx_cfg = {
+        .gpio_num = cfg.rx_gpio,
         .clk_src = RMT_CLK_SRC_DEFAULT,
         .resolution_hz = cfg.resolution_hz,
         .mem_block_symbols = static_cast<uint32_t>(cfg.max_symbols),
-        .gpio_num = cfg.rx_gpio,
     };
     ESP_RETURN_ON_ERROR(rmt_new_rx_channel(&rx_cfg, &m_rx), TAG, "new rx failed");
 
     rmt_tx_channel_config_t tx_cfg = {
+        .gpio_num = cfg.tx_gpio,
         .clk_src = RMT_CLK_SRC_DEFAULT,
         .resolution_hz = cfg.resolution_hz,
         .mem_block_symbols = 64,
         .trans_queue_depth = 4,
-        .gpio_num = cfg.tx_gpio,
     };
     ESP_RETURN_ON_ERROR(rmt_new_tx_channel(&tx_cfg, &m_tx), TAG, "new tx failed");
 
