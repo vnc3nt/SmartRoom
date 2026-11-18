@@ -120,6 +120,7 @@ esp_err_t ota_check_and_update()
     ota_cfg.http_config = &http_cfg;
     const esp_err_t ret = esp_https_ota(&ota_cfg);
     if (ret == ESP_OK) {
+        ESP_LOGW(TAG, "Update auf Version %s ausgeführt", remote_version.c_str());
         ESP_LOGI(TAG, "OTA erfolgreich! Starte neu...");
         vTaskDelay(pdMS_TO_TICKS(1000));
         esp_restart();
