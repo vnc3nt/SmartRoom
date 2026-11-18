@@ -13,14 +13,12 @@
 ## How to Use Example
 
 ### Hardware Required
-
 * A development board with supported SoC mentioned in the above `Supported Targets` table
 * An USB cable for power supply and programming
 * A 5mm infrared LED (e.g. IR333C) used to transmit encoded IR signals
 * An infrared receiver module (e.g. IRM-3638T), which integrates a demodulator and AGC circuit
 
 ### Hardware Connection
-
 ```
    IR Receiver (IRM-3638T)                 ESP Board                        IR Transmitter (IR333C)
 +--------------------------+       +----------------------+              +---------------------------+
@@ -28,8 +26,7 @@
 |                          |       |                      |              |                           |
 |                       3V3+-------+3V3                 5V+--------------+VCC                        |
 |                          |       |                      |              |                           |
-|                       GND+-------+GND                GND+--------------+GND                        |
-+--------------------------+       +----------------------+              +---------------------------+
+|                       GND+-------+GND                GND+--------------+GND---------------------------+
 ```
 
 The TX and RX GPIO number used by this example can be changed in [the source file](main/ir_nec_transceiver_main.c) via `EXAMPLE_IR_TX_GPIO_NUM` and `EXAMPLE_IR_RX_GPIO_NUM`.
@@ -112,3 +109,5 @@ In the example's main loop, the RX channel waits for any NEC frames, if nothing 
 ## Troubleshooting
 
 For any technical queries, please open an [issue] (https://github.com/espressif/esp-idf/issues) on GitHub. We will get back to you soon.
+
+<!-- OTA smoke test -->
