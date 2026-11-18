@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.31)
+cmake_minimum_required(VERSION 3.16)
 
 # Partition table
 set(PARTITION_CSV_PATH "partitions.csv")
