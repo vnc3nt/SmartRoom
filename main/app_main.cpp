@@ -23,6 +23,10 @@
 #include "smartroom_rgb.h"
 #include "smartroom_store.h"
 
+#if __has_include("insights_secret.h")
+#include "insights_secret.h"
+#endif
+
 using namespace esp_matter;
 using namespace esp_matter::attribute;
 using namespace esp_matter::endpoint;
@@ -369,6 +373,9 @@ extern "C" void app_main(void)
 #ifdef CONFIG_ESP_INSIGHTS_ENABLED
     esp_insights_config_t insights_cfg = {
         .log_type = ESP_DIAG_LOG_TYPE_ERROR | ESP_DIAG_LOG_TYPE_WARNING | ESP_DIAG_LOG_TYPE_EVENT,
+#ifdef SMARTROOM_INSIGHTS_AUTH_KEY
+        .auth_key = SMARTROOM_INSIGHTS_AUTH_KEY,
+#endif
     };
     esp_insights_init(&insights_cfg);
 #endif

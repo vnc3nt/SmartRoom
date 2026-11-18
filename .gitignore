@@ -25,3 +25,5 @@ __pycache__/
 .pytest_cache/
 
 # Keep dependencies.lock tracked for reproducible application dependencies.
+
+main/insights_secret.h
