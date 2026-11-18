@@ -8,13 +8,10 @@ namespace smartroom {
 // ============================================================================
 // Verbindliche Pinbelegung (ESP32-C6 SuperMini)
 // ============================================================================
-constexpr int kIrTxGpio = 18; // IR-Sender (38 kHz Carrier)
-constexpr int kIrRxGpio = 19; // IR-Empfaenger (demoduliert)
-
-// TODO: Offener Hardware-Pin! Bitte den bestaetigten GPIO fuer WS2813 Data eintragen.
-// Hinweis: Levelshifter ist angeschlossen und funktioniert.
-// Solange kWs2813DataGpio == -1 (GPIO_NUM_NC), bleibt die LED-Ausgabe sicher deaktiviert.
-constexpr int kWs2813DataGpio = -1;
+constexpr int kIrTxGpio = 18;           // IR-Sender (38 kHz Carrier)
+constexpr int kIrRxGpio = 19;           // IR-Empfaenger (demoduliert)
+constexpr int kWs2813DataGpio = 20;     // WS2813 Data ueber Levelshifter (Pin 2)
+constexpr int kPairingButtonGpio = 7;   // Matter Pairing- / Reset-Taster
 
 // ============================================================================
 // WS2813 LED-Strip Konfiguration
