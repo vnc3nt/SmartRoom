@@ -70,10 +70,10 @@ bool endpoint_is_signal(uint16_t endpoint)
 
 esp_err_t create_signal_endpoint(node_t *node, const smartroom::IrSignal &signal)
 {
-    on_off_plug_in_unit::config_t cfg;
+    on_off_plugin_unit::config_t cfg;
     cfg.on_off.on_off = false;
 
-    endpoint_t *ep = on_off_plug_in_unit::create(node, &cfg, ENDPOINT_FLAG_DESTROYABLE, nullptr);
+    endpoint_t *ep = on_off_plugin_unit::create(node, &cfg, ENDPOINT_FLAG_DESTROYABLE, nullptr);
     ESP_RETURN_ON_FALSE(ep != nullptr, ESP_FAIL, TAG, "Failed to create bridged endpoint");
     if (g_node_aggregator) {
         endpoint::set_parent_endpoint(ep, g_node_aggregator);
@@ -218,13 +218,19 @@ void worker_task(void *)
             esp_matter_attr_val_t cy = esp_matter_invalid(nullptr);
             esp_matter_attr_val_t cmode = esp_matter_invalid(nullptr);
 
-            attribute::get(cmd.endpoint_id, OnOff::Id, OnOff::Attributes::OnOff::Id, &onoff);
-            attribute::get(cmd.endpoint_id, LevelControl::Id, LevelControl::Attributes::CurrentLevel::Id, &level);
-            attribute::get(cmd.endpoint_id, ColorControl::Id, ColorControl::Attributes::CurrentHue::Id, &hue);
-            attribute::get(cmd.endpoint_id, ColorControl::Id, ColorControl::Attributes::CurrentSaturation::Id, &sat);
-            attribute::get(cmd.endpoint_id, ColorControl::Id, ColorControl::Attributes::CurrentX::Id, &cx);
-            attribute::get(cmd.endpoint_id, ColorControl::Id, ColorControl::Attributes::CurrentY::Id, &cy);
-            attribute::get(cmd.endpoint_id, ColorControl::Id, ColorControl::Attributes::ColorMode::Id, &cmode);
+            auto read_attr = [&](uint32_t cluster_id, uint32_t attr_id, esp_matter_attr_val_t &out) {
+                if (attribute_t *attr = attribute::get(cmd.endpoint_id, cluster_id, attr_id)) {
+                    attribute::get_val(attr, &out);
+                }
+            };
+
+            read_attr(OnOff::Id, OnOff::Attributes::OnOff::Id, onoff);
+            read_attr(LevelControl::Id, LevelControl::Attributes::CurrentLevel::Id, level);
+            read_attr(ColorControl::Id, ColorControl::Attributes::CurrentHue::Id, hue);
+            read_attr(ColorControl::Id, ColorControl::Attributes::CurrentSaturation::Id, sat);
+            read_attr(ColorControl::Id, ColorControl::Attributes::CurrentX::Id, cx);
+            read_attr(ColorControl::Id, ColorControl::Attributes::CurrentY::Id, cy);
+            read_attr(ColorControl::Id, ColorControl::Attributes::ColorMode::Id, cmode);
 
             smartroom::RgbState rgb = {
                 .on = onoff.val.b,
@@ -379,9 +385,9 @@ extern "C" void app_main(void)
     g_node_aggregator = aggregator::create(node, &agg_cfg, ENDPOINT_FLAG_NONE, nullptr);
     ESP_ERROR_CHECK(g_node_aggregator ? ESP_OK : ESP_FAIL);
 
-    on_off_plug_in_unit::config_t learn_cfg;
+    on_off_plugin_unit::config_t learn_cfg;
     learn_cfg.on_off.on_off = false;
-    endpoint_t *learn_ep = on_off_plug_in_unit::create(node, &learn_cfg, ENDPOINT_FLAG_NONE, nullptr);
+    endpoint_t *learn_ep = on_off_plugin_unit::create(node, &learn_cfg, ENDPOINT_FLAG_NONE, nullptr);
     ESP_ERROR_CHECK(learn_ep ? ESP_OK : ESP_FAIL);
     g_learn_endpoint = endpoint::get_id(learn_ep);
 
