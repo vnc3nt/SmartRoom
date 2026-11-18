@@ -214,7 +214,7 @@ void worker_task(void *)
         }
 
         if (cmd.type == WorkerCmdType::ResetOnOff) {
-            vTaskDelay(pdMS_TO_TICKS(150));
+            vTaskDelay(pdMS_TO_TICKS(1000));
             reset_momentary_onoff(cmd.endpoint_id);
             continue;
         }
