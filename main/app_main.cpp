@@ -7,6 +7,7 @@
 #include <app/server/Server.h>
 #include "driver/gpio.h"
 #include "esp_check.h"
+#include "esp_insights.h"
 #include "esp_log.h"
 #include "esp_matter.h"
 #include "esp_timer.h"
@@ -364,6 +365,13 @@ extern "C" void app_main(void)
     }
 
     ESP_LOGI(TAG, "SmartRoom start (target: %s)", CONFIG_IDF_TARGET);
+
+#ifdef CONFIG_ESP_INSIGHTS_ENABLED
+    esp_insights_config_t insights_cfg = {
+        .log_type = ESP_DIAG_LOG_TYPE_ERROR | ESP_DIAG_LOG_TYPE_WARNING | ESP_DIAG_LOG_TYPE_EVENT,
+    };
+    esp_insights_init(&insights_cfg);
+#endif
 
     ESP_ERROR_CHECK(g_store.init());
     ESP_ERROR_CHECK(g_store.load_all(g_signals));
