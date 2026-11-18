@@ -1,6 +1,5 @@
 #include "smartroom_ota.h"
 
-#include <cstring>
 #include <string>
 
 #include "cJSON.h"
@@ -8,21 +7,29 @@
 #include "esp_http_client.h"
 #include "esp_https_ota.h"
 #include "esp_log.h"
+#include "esp_netif.h"
 #include "esp_ota_ops.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
 namespace smartroom {
 namespace {
-static const char *TAG = "smartroom_ota";
-
-// GitHub Release URLs fuer den Branch 'update_release'
+constexpr const char *TAG = "smartroom_ota";
 constexpr const char *kVersionUrl =
     "https://github.com/vnc3nt/SmartRoom/releases/download/latest-ota/version.json";
 constexpr const char *kFirmwareUrl =
     "https://github.com/vnc3nt/SmartRoom/releases/download/latest-ota/SmartRoom.bin";
+constexpr uint32_t kOtaCheckIntervalMs = 6 * 60 * 60 * 1000;
+constexpr uint32_t kOtaRetryMs = 60 * 1000;
+constexpr uint32_t kNetworkPollMs = 5000;
 
-constexpr uint32_t kOtaCheckIntervalMs = 6 * 60 * 60 * 1000; // Alle 6 Stunden
+bool network_ready()
+{
+    auto *netif = esp_netif_get_default_netif();
+    esp_netif_ip_info_t info = {};
+    return netif && esp_netif_is_netif_up(netif) &&
+           esp_netif_get_ip_info(netif, &info) == ESP_OK && info.ip.addr != 0;
+}
 
 esp_err_t http_event_handler(esp_http_client_event_t *evt)
 {
@@ -47,41 +54,39 @@ esp_err_t fetch_remote_version(std::string &out_version)
     cfg.event_handler = http_event_handler;
     cfg.user_data = &body;
 
-    esp_http_client_handle_t client = esp_http_client_init(&cfg);
+    auto client = esp_http_client_init(&cfg);
     if (!client) {
         return ESP_ERR_NO_MEM;
     }
-
-    esp_err_t err = esp_http_client_perform(client);
-    int status = esp_http_client_get_status_code(client);
+    const esp_err_t err = esp_http_client_perform(client);
+    const int status = esp_http_client_get_status_code(client);
     esp_http_client_cleanup(client);
-
     if (err != ESP_OK || status != 200 || body.empty()) {
-        return ESP_FAIL;
+        ESP_LOGW(TAG, "Manifest fetch failed: HTTP %d, %s", status, esp_err_to_name(err));
+        return err == ESP_OK ? ESP_FAIL : err;
     }
 
     cJSON *root = cJSON_Parse(body.c_str());
     if (!root) {
-        return ESP_FAIL;
+        return ESP_ERR_INVALID_RESPONSE;
     }
-    cJSON *ver = cJSON_GetObjectItem(root, "version");
-    if (cJSON_IsString(ver) && ver->valuestring) {
+    const cJSON *ver = cJSON_GetObjectItem(root, "version");
+    const bool valid = cJSON_IsString(ver) && ver->valuestring && ver->valuestring[0];
+    if (valid) {
         out_version = ver->valuestring;
-        cJSON_Delete(root);
-        return ESP_OK;
     }
     cJSON_Delete(root);
-    return ESP_FAIL;
+    return valid ? ESP_OK : ESP_ERR_INVALID_RESPONSE;
 }
 
 void ota_task(void *)
 {
-    // Kurz warten bis WLAN nach Boot stabil ist
-    vTaskDelay(pdMS_TO_TICKS(30000));
-
     while (true) {
-        ota_check_and_update();
-        vTaskDelay(pdMS_TO_TICKS(kOtaCheckIntervalMs));
+        while (!network_ready()) {
+            vTaskDelay(pdMS_TO_TICKS(kNetworkPollMs));
+        }
+        const esp_err_t result = ota_check_and_update();
+        vTaskDelay(pdMS_TO_TICKS(result == ESP_OK ? kOtaCheckIntervalMs : kOtaRetryMs));
     }
 }
 } // namespace
@@ -90,9 +95,10 @@ esp_err_t ota_check_and_update()
 {
     const esp_app_desc_t *running = esp_app_get_description();
     std::string remote_version;
-    if (fetch_remote_version(remote_version) != ESP_OK) {
-        ESP_LOGD(TAG, "OTA-Versionspruefung fehlgeschlagen (kein Netzwerk oder kein Release)");
-        return ESP_FAIL;
+    const esp_err_t manifest_err = fetch_remote_version(remote_version);
+    if (manifest_err != ESP_OK) {
+        ESP_LOGW(TAG, "OTA-Versionspruefung fehlgeschlagen: %s", esp_err_to_name(manifest_err));
+        return manifest_err;
     }
 
     if (remote_version == running->version) {
@@ -112,8 +118,7 @@ esp_err_t ota_check_and_update()
 
     esp_https_ota_config_t ota_cfg = {};
     ota_cfg.http_config = &http_cfg;
-
-    esp_err_t ret = esp_https_ota(&ota_cfg);
+    const esp_err_t ret = esp_https_ota(&ota_cfg);
     if (ret == ESP_OK) {
         ESP_LOGI(TAG, "OTA erfolgreich! Starte neu...");
         vTaskDelay(pdMS_TO_TICKS(1000));
@@ -126,8 +131,8 @@ esp_err_t ota_check_and_update()
 
 esp_err_t ota_start_background_task()
 {
-    BaseType_t ok = xTaskCreate(ota_task, "smartroom_ota", 8192, nullptr, 3, nullptr);
-    return (ok == pdPASS) ? ESP_OK : ESP_ERR_NO_MEM;
+    const BaseType_t ok = xTaskCreate(ota_task, "smartroom_ota", 8192, nullptr, 3, nullptr);
+    return ok == pdPASS ? ESP_OK : ESP_ERR_NO_MEM;
 }
 
 } // namespace smartroom

@@ -27,6 +27,7 @@
 #include "insights_secret.h"
 #endif
 
+
 using namespace esp_matter;
 using namespace esp_matter::attribute;
 using namespace esp_matter::endpoint;
@@ -377,18 +378,9 @@ extern "C" void app_main(void)
 
     ESP_LOGI(TAG, "SmartRoom start (target: %s)", CONFIG_IDF_TARGET);
 
-#ifdef CONFIG_ESP_INSIGHTS_ENABLED
-    esp_insights_config_t insights_cfg = {
-        .log_type = ESP_DIAG_LOG_TYPE_ERROR | ESP_DIAG_LOG_TYPE_WARNING | ESP_DIAG_LOG_TYPE_EVENT,
-#ifdef SMARTROOM_INSIGHTS_AUTH_KEY
-        .auth_key = SMARTROOM_INSIGHTS_AUTH_KEY,
-#endif
-    };
-    esp_insights_init(&insights_cfg);
-#endif
-
     ESP_ERROR_CHECK(g_store.init());
     ESP_ERROR_CHECK(g_store.load_all(g_signals));
+
 
     smartroom::IrRmtConfig ir_cfg = {
         .rx_gpio = static_cast<gpio_num_t>(smartroom::kIrRxGpio),
@@ -445,6 +437,22 @@ extern "C" void app_main(void)
     }
 
     ESP_ERROR_CHECK(esp_matter::start(app_event_cb));
+    #if defined(CONFIG_ESP_INSIGHTS_ENABLED) && defined(SMARTROOM_INSIGHTS_AUTH_KEY)
+        esp_insights_config_t insights_cfg = {};
+        insights_cfg.log_type = ESP_DIAG_LOG_TYPE_ERROR |
+                                ESP_DIAG_LOG_TYPE_WARNING |
+                                ESP_DIAG_LOG_TYPE_EVENT;
+        insights_cfg.auth_key = SMARTROOM_INSIGHTS_AUTH_KEY;
+
+        const esp_err_t insights_err = esp_insights_init(&insights_cfg);
+        if (insights_err == ESP_OK) {
+            ESP_LOGI(TAG, "ESP Insights initialized");
+        } else {
+            ESP_LOGW(TAG, "ESP Insights init failed: %s", esp_err_to_name(insights_err));
+        }
+    #elif defined(CONFIG_ESP_INSIGHTS_ENABLED)
+        ESP_LOGW(TAG, "ESP Insights skipped: no auth key configured");
+    #endif
 
     xTaskCreate(worker_task, "smartroom_worker", 8192, nullptr, 5, nullptr);
     xTaskCreate(button_task, "smartroom_button", 4096, nullptr, 5, nullptr);
