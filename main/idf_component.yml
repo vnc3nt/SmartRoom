@@ -1,10 +1,6 @@
-## IDF Component Manager Manifest File
 dependencies:
-  ## Required IDF version
   idf:
     version: '>=5.2.0'
-
-  # ESP Matter - Matter protocol support
   espressif/esp_matter:
     version: '1.4.0'
   espressif/esp_insights:
