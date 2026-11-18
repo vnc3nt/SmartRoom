@@ -20,6 +20,7 @@ jobs:
       - name: Set target esp32c6 & build firmware
         shell: bash
         run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           rm -rf managed_components dependencies.lock
           source /opt/esp/idf/export.sh
           idf.py set-target esp32c6
