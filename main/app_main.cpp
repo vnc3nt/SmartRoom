@@ -216,6 +216,7 @@ void worker_task(void *)
             esp_matter_attr_val_t sat = esp_matter_invalid(nullptr);
             esp_matter_attr_val_t cx = esp_matter_invalid(nullptr);
             esp_matter_attr_val_t cy = esp_matter_invalid(nullptr);
+            esp_matter_attr_val_t mireds = esp_matter_invalid(nullptr);
             esp_matter_attr_val_t cmode = esp_matter_invalid(nullptr);
 
             auto read_attr = [&](uint32_t cluster_id, uint32_t attr_id, esp_matter_attr_val_t &out) {
@@ -230,6 +231,7 @@ void worker_task(void *)
             read_attr(ColorControl::Id, ColorControl::Attributes::CurrentSaturation::Id, sat);
             read_attr(ColorControl::Id, ColorControl::Attributes::CurrentX::Id, cx);
             read_attr(ColorControl::Id, ColorControl::Attributes::CurrentY::Id, cy);
+            read_attr(ColorControl::Id, ColorControl::Attributes::ColorTemperatureMireds::Id, mireds);
             read_attr(ColorControl::Id, ColorControl::Attributes::ColorMode::Id, cmode);
 
             smartroom::RgbState rgb = {
@@ -239,7 +241,8 @@ void worker_task(void *)
                 .saturation = sat.val.u8,
                 .color_x = cx.val.u16,
                 .color_y = cy.val.u16,
-                .use_xy = (cmode.val.u8 == static_cast<uint8_t>(ColorControl::ColorMode::kCurrentXAndCurrentY)),
+                .color_temp_mireds = mireds.val.u16,
+                .color_mode = cmode.val.u8,
             };
             g_rgb.apply(rgb);
             continue;
@@ -399,6 +402,11 @@ extern "C" void app_main(void)
     endpoint_t *rgb_ep = extended_color_light::create(node, &rgb_matter_cfg, ENDPOINT_FLAG_NONE, nullptr);
     ESP_ERROR_CHECK(rgb_ep ? ESP_OK : ESP_FAIL);
     g_rgb_endpoint = endpoint::get_id(rgb_ep);
+
+    if (cluster_t *color_cluster = cluster::get(rgb_ep, ColorControl::Id)) {
+        cluster::color_control::feature::hue_saturation::config_t hs_cfg;
+        cluster::color_control::feature::hue_saturation::add(color_cluster, &hs_cfg);
+    }
 
     for (const auto &sig : g_signals) {
         ESP_ERROR_CHECK(create_signal_endpoint(node, sig));

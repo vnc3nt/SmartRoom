@@ -39,7 +39,7 @@ esp_err_t IrRmt::init(const IrRmtConfig &cfg)
         .gpio_num = cfg.tx_gpio,
         .clk_src = RMT_CLK_SRC_DEFAULT,
         .resolution_hz = cfg.resolution_hz,
-        .mem_block_symbols = 64,
+        .mem_block_symbols = 48,
         .trans_queue_depth = 4,
     };
     ESP_RETURN_ON_ERROR(rmt_new_tx_channel(&tx_cfg, &m_tx), TAG, "new tx failed");

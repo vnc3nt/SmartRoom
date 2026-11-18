@@ -25,7 +25,7 @@ constexpr uint32_t kWs2813ResolutionHz = 10000000; // 10 MHz RMT-Aufloesung
 // ============================================================================
 constexpr uint32_t kIrResolutionHz = 1000000;       // 1 MHz (1 us pro Tick)
 constexpr uint32_t kIrDefaultCarrierHz = 38000;     // 38 kHz Standard-Traeger
-constexpr size_t kIrMaxSymbols = 256;               // Maximale RMT-Symbole pro Frame
+constexpr size_t kIrMaxSymbols = 96;                // 2 RMT-Bloecke (96 Symbole) fuer ESP32-C6
 constexpr size_t kIrMaxSignals = 32;                // Maximale gespeicherte IR-Befehle
 constexpr uint32_t kIrLearnTimeoutMs = 15000;       // 15 Sekunden Lernfenster
 
