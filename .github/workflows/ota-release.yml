@@ -20,6 +20,7 @@ jobs:
       - name: Set target esp32c6 & build firmware
         shell: bash
         run: |
+          rm -rf managed_components
           source /opt/esp/idf/export.sh
           idf.py set-target esp32c6
           idf.py build
